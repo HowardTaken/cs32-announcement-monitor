@@ -6,7 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 # Configuration
-URL = "https://web.cs.ucla.edu/classes/spring26/cs32/"
+URL = "view-source:https://web.cs.ucla.edu/classes/spring26/cs32/announcements.html"
 STATE_FILE = "seen.json"
 
 # Email credentials from environment variables (kept safe in GitHub Secrets)

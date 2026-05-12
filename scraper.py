@@ -5,31 +5,27 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 
-# Configuration
 URL = "https://web.cs.ucla.edu/classes/spring26/cs32/announcements.html"
 STATE_FILE = "seen.json"
 
-# Email credentials from environment variables (kept safe in GitHub Secrets)
+# Email credentials from GitHub Secrets
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL")
-SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD") # Use a Gmail App Password
+SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")
 RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL")
 
 def get_announcements():
-    response = requests.get(URL)
+    # Disguise the scraper as a normal web browser
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    response = requests.get(URL, headers=headers)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # Extract all text, looking for the lines that contain the announcements
-    # UCLA CS websites typically use simple tables or lists for this.
     announcements = []
-    
-    # We grab table rows and filter out the ones that start with a date pattern
     for tr in soup.find_all('tr'):
         cells = tr.find_all(['td', 'th'])
         if len(cells) >= 2:
             date_text = cells[0].get_text(strip=True)
             info_text = cells[1].get_text(strip=True)
-            # Basic check to see if the first column looks like a date (e.g., "5/5/26")
             if "/" in date_text and len(date_text) <= 10: 
                 announcements.append(f"{date_text}: {info_text}")
                 
@@ -55,21 +51,25 @@ def main():
     print("Fetching announcements...")
     current_announcements = get_announcements()
     
-    # Load previously seen announcements
+    # Load previously seen announcements (with a safety check for empty files)
+    seen_announcements = set()
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, 'r') as f:
-            seen_announcements = set(json.load(f))
-    else:
-        seen_announcements = set()
+        try:
+            with open(STATE_FILE, 'r') as f:
+                # Read the file and ensure it's not totally blank before parsing
+                content = f.read().strip()
+                if content:
+                    seen_announcements = set(json.loads(content))
+        except json.JSONDecodeError:
+            print("Notice: seen.json was empty. Starting fresh.")
+            pass 
 
-    # Find which ones are new
     new_announcements = [a for a in current_announcements if a not in seen_announcements]
 
     if new_announcements:
         print(f"Found {len(new_announcements)} new announcement(s)! Sending email...")
         send_email(new_announcements)
         
-        # Update the state file
         with open(STATE_FILE, 'w') as f:
             json.dump(current_announcements, f)
     else:

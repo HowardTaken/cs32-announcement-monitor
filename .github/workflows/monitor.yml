@@ -2,18 +2,24 @@ name: CS32 Announcement Monitor
 
 on:
   schedule:
-    - cron: '0 * * * *' # Runs at the top of every hour
-  workflow_dispatch: # Allows you to run it manually
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+# FIX 1: Explicitly give GitHub permission to save the seen.json file
+permissions:
+  contents: write 
 
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        # FIX 2: Updated to v4 to clear the Node.js warning
+        uses: actions/checkout@v4 
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        # FIX 2: Updated to v5 to clear the Node.js warning
+        uses: actions/setup-python@v5 
         with:
           python-version: '3.10'
 
@@ -28,10 +34,11 @@ jobs:
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
         run: python scraper.py
 
-      - name: Commit and push changes (saves the seen.json file)
+      - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # FIX 3: Creates an empty file if it doesn't exist so git add never crashes
+          touch seen.json 
           git add seen.json
-          # Only commit if seen.json changed
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update seen announcements" && git push)
